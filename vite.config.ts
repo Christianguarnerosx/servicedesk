@@ -22,4 +22,12 @@ export default defineConfig({
             'ziggy-js': resolve(__dirname, 'vendor/tightenco/ziggy'),
         },
     },
+    server: {
+        host: '0.0.0.0',   // escucha en todas las interfaces del contenedor
+        port: 5173,        // el mismo que expones en docker-compose
+        hmr: {
+            host: 'localhost', // para que el navegador se conecte al HMR
+            port: 5173,
+        },
+    },
 });

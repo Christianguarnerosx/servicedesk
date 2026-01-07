@@ -1,0 +1,16 @@
+services:
+  app:
+    volumes:
+      - .:/var/www
+    command: sh -c "composer install && php-fpm"
+
+  node:
+    image: node:20
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+    ports:
+      - "5173:5173"
+    command: npm run dev -- --host
+    depends_on:
+      - app
