@@ -1,5 +1,9 @@
 services:
   app:
-    build: .
-    container_name: tickets-app
-    command: php-fpm
+    build:
+      context: .
+      target: final
+    restart: always
+
+  nginx:
+    restart: always
