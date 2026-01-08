@@ -1,8 +1,12 @@
 # Stage 1: Build Frontend Assets
-FROM node:20 as node_build
+FROM node:20 AS node_build
 WORKDIR /app
+
+# Instalar dependencias de Node
 COPY package*.json ./
 RUN npm install
+
+# Copiar todo el frontend y compilar
 COPY . .
 RUN npm run build
 
@@ -15,22 +19,25 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Composer
-RUN curl -sS https://getcomposer.org/installer | php --install-dir=/usr/local/bin --filename=composer
+# Composer (forma robusta sin pipe)
+RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
+    && php composer-setup.php --install-dir=/usr/local/bin --filename=composer \
+    && php -r "unlink('composer-setup.php');"
 
 WORKDIR /var/www
 
-# Copy Backend Source
+# Copiar backend
 COPY . .
 
-# Copy Built Assets from Stage 1 (for Production)
+# Copiar assets compilados del frontend
 COPY --from=node_build /app/public/build ./public/build
 
-# Install PHP Dependencies
+# Instalar dependencias PHP
 RUN composer install --no-interaction --optimize-autoloader --no-dev
 
-# Permissions
+# Permisos
 RUN chown -R www-data:www-data /var/www \
     && chmod -R 775 storage bootstrap/cache
 
+# Ejecutar PHP-FPM
 CMD ["php-fpm"]
