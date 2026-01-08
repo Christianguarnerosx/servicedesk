@@ -1,36 +1,112 @@
 services:
+
+  # =====================================
+  # Contenedor PHP / Laravel
+  # =====================================
   app:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        APP_ENV: production
+    container_name: servicedesk-app
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      APP_DEBUG: ${APP_DEBUG:-1}
+      DB_HOST: db
+      DB_DATABASE: servicedesk
+      DB_USERNAME: adminserv
+      DB_PASSWORD: passserv
+      APP_KEY: ${APP_KEY}          # define tu APP_KEY en .env o variable
+      VITE_URL: ${VITE_URL:-http://node:5173} # dev server
     volumes:
-      - static_volume:/var/www/public
+      - .:/var/www:cached
+    command: sh -c "cd /var/www && composer install --ignore-platform-reqs && chmod -R 775 storage bootstrap/cache && chown -R www-data:www-data storage bootstrap/cache && php-fpm"
+    networks:
+      - laravel
     depends_on:
       - db
 
-  nginx:
+  # =====================================
+  # Node / Vite (solo en desarrollo)
+  # =====================================
+  node:
+    image: node:20
+    container_name: servicedesk-node
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host"
+    depends_on:
+      - app
+    networks:
+      - laravel
+    profiles:
+      - dev  # Solo se levanta con perfil dev
+
+  # =====================================
+  # Nginx
+  # =====================================
+  web:
     image: nginx:alpine
+    container_name: servicedesk-web
     ports:
       - "8000:80"
     volumes:
+      - .:/var/www
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
-      - static_volume:/var/www/public
     depends_on:
       - app
+    networks:
+      - laravel
+    restart: always
 
+  # =====================================
+  # MySQL
+  # =====================================
   db:
     image: mysql:8.0
-    command: --default-authentication-plugin=mysql_native_password
+    container_name: servicedesk-db
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: tickets
+      MYSQL_DATABASE: servicedesk
       MYSQL_USER: adminserv
       MYSQL_PASSWORD: passserv
+    ports:
+      - "3306:3306"
     volumes:
-      - db_data:/var/lib/mysql
+      - db-data:/var/lib/mysql
+    networks:
+      - laravel
+    restart: always
 
+  # =====================================
+  # phpMyAdmin (opcional)
+  # =====================================
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: servicedesk-phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_USER: adminserv
+      PMA_PASSWORD: passserv
+    ports:
+      - "8080:80"
+    networks:
+      - laravel
+    profiles:
+      - dev  # Solo levantar en desarrollo
+    restart: always
+
+# =====================================
+# Volúmenes
+# =====================================
 volumes:
-  db_data:
-  static_volume:
+  db-data:
+
+# =====================================
+# Redes
+# =====================================
+networks:
+  laravel:
+    driver: bridge

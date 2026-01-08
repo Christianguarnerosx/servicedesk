@@ -19,15 +19,15 @@ export default defineConfig({
     },
     resolve: {
         alias: {
+            '@': resolve(__dirname, 'resources/js'),  // 👈 AQUI EL ALIAS
             'ziggy-js': resolve(__dirname, 'vendor/tightenco/ziggy'),
         },
     },
     server: {
-        host: '0.0.0.0',   // escucha en todas las interfaces del contenedor
-        port: 5173,        // el mismo que expones en docker-compose
+        host: '0.0.0.0', // expone el servidor al host de Docker
+        port: 5173,
         hmr: {
-            host: 'localhost', // para que el navegador se conecte al HMR
-            port: 5173,
+            host: 'localhost', // para que React reciba las actualizaciones
         },
     },
 });

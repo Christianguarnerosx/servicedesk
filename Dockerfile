@@ -1,43 +1,25 @@
-# Stage 1: Build Frontend Assets
-FROM node:20 AS node_build
-WORKDIR /app
-
-# Instalar dependencias de Node
-COPY package*.json ./
-RUN npm install
-
-# Copiar todo el frontend y compilar
-COPY . .
-RUN npm run build
-
-# Stage 2: PHP Application
 FROM php:8.2-fpm
 
-# System Dependencies
+# Instalar extensiones necesarias para Laravel
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libpng-dev libonig-dev libxml2-dev libzip-dev libpq-dev \
-    && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip
 
-# Composer (forma robusta sin pipe)
-RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
-    && php composer-setup.php --install-dir=/usr/local/bin --filename=composer \
-    && php -r "unlink('composer-setup.php');"
+# Instalar Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Instalar Node.js 20 y npm
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g npm@latest
 
 WORKDIR /var/www
 
-# Copiar backend
 COPY . .
 
-# Copiar assets compilados del frontend
-COPY --from=node_build /app/public/build ./public/build
+# Instalar dependencias de PHP y Node
+RUN composer install
+RUN npm install
 
-# Instalar dependencias PHP
-RUN composer install --no-interaction --optimize-autoloader --no-dev
-
-# Permisos
-RUN chown -R www-data:www-data /var/www \
-    && chmod -R 775 storage bootstrap/cache
-
-# Ejecutar PHP-FPM
+# PHP-FPM por defecto
 CMD ["php-fpm"]
